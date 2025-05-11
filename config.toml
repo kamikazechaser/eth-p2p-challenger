@@ -1,0 +1,8 @@
+[test]
+# celo bootnode
+enode = "enode://28f4fcb7f38c1b012087f7aef25dcb0a1257ccf1cdc4caa88584dc25416129069b514908c8cead5d0105cb0041dd65cd4ee185ae0d379a586fb07b1447e9de38@34.169.39.223:30303"
+
+[client]
+useragent = "kamikazechaser/eth-p2p-challeneger"
+# test key
+private_key = "4685414b5d54837390a0e4a824fa1d6d1257aa925aad1424d3ed7ef03a94302f"
