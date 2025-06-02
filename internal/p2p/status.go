@@ -27,11 +27,17 @@ func (c *Client) handleStatus(payload []byte) error {
 	if err := rlp.DecodeBytes(payload, &s); err != nil {
 		return fmt.Errorf("failed to decode status message: %w", err)
 	}
-	c.logg.Debug("received status message", "head", s.Head, "networkID", s.NetworkID, "next_fork_block", s.ForkID.Next)
+
+	c.logg.Debug("received status message", "status", s)
 
 	if err := c.sendStatus(&s); err != nil {
 		return fmt.Errorf("failed to send status message: %w", err)
 	}
 
+	c.ready = true
 	return nil
+}
+
+func (c *Client) Ready() bool {
+	return c.ready
 }

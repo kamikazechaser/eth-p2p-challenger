@@ -17,14 +17,14 @@ type protoHandshake struct {
 
 const (
 	p2pProtocolVersion = 5
-	ethProtoclVersion  = 68
+	ethProtocolVersion = 68
 )
 
 func (c *Client) supportedCaps() []p2p.Cap {
 	return []p2p.Cap{
 		{
 			Name:    "eth",
-			Version: ethProtoclVersion,
+			Version: ethProtocolVersion,
 		},
 		{
 			Name:    "snap",

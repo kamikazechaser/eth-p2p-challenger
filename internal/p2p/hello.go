@@ -13,7 +13,6 @@ const helloMsg = 0x00
 func (c *Client) sendHello() error {
 	hello := &Hello{
 		Version: p2pProtocolVersion,
-		Name:    c.userAgent,
 		Caps:    c.supportedCaps(),
 		ID:      c.ID(),
 	}
@@ -40,7 +39,7 @@ func (c *Client) handleHello(payload []byte) error {
 
 	for _, cap := range h.Caps {
 		c.logg.Debug("supported eth caps", "cap_name", cap.Name, "cap_version", cap.Version)
-		if cap.Name == "eth" && cap.Version < ethProtoclVersion {
+		if cap.Name == "eth" && cap.Version < ethProtocolVersion {
 			return fmt.Errorf("unsupported eth protocol version: %d", cap.Version)
 		}
 		if cap.Name == "snap" && cap.Version == 1 {

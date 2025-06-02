@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,12 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kamikazechaser/eth-p2p-challenger/internal/challenger"
 	"github.com/kamikazechaser/eth-p2p-challenger/internal/p2p"
 	"github.com/kamikazechaser/eth-p2p-challenger/internal/util"
 	"github.com/knadh/koanf/v2"
 )
 
-const defaultGracefulShutdownPeriod = time.Second * 5
+const defaultGracefulShutdownPeriod = time.Second * 15
 
 var (
 	build = "dev"
@@ -39,13 +39,16 @@ func init() {
 }
 
 func main() {
-	var wg sync.WaitGroup
+	var (
+		wg        sync.WaitGroup
+		closeOnce sync.Once
+	)
+
 	ctx, stop := notifyShutdown()
 
 	client, err := p2p.NewClient(p2p.ClientOpts{
-		EnodeURL:      ko.MustString("test.enode"),
+		EnodeURL:      ko.MustString("client.enode"),
 		PrivateKeyHex: ko.MustString("client.private_key"),
-		UserAgent:     fmt.Sprintf("%s/%s", ko.MustString("client.useragent"), build),
 		Logg:          lo,
 	})
 	if err != nil {
@@ -57,10 +60,22 @@ func main() {
 		lo.Error("failed to connect to node", "err", err)
 		os.Exit(1)
 	}
+
+	challnger := challenger.NewChallenger(challenger.ChallengerOpts{
+		Logg:      lo,
+		P2PClient: client,
+	})
+
 	wg.Add(1)
 	go func() {
-		client.ReadProcess()
 		defer wg.Done()
+		client.ReadProcess()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		challnger.Start()
 	}()
 
 	<-ctx.Done()
@@ -69,7 +84,12 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		client.Close()
+		defer wg.Done()
+		closeOnce.Do(func() {
+			challnger.Stop()
+			lo.Info("closing client connection")
+			client.Close()
+		})
 	}()
 
 	go func() {

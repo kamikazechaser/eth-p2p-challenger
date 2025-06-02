@@ -4,15 +4,22 @@
 
 > Ethereum execution client devp2p probe and challenger
 
-⚠️ WIP
+## Description
 
-Status:
+A proof-of-concept P2P challenger that connects to Ethereum nodes and submits various random protocol challenges over RLPx to test node behavior.
 
-- [x] RLPx handshake
-- [x] Cap status
-- [x] Ping pong
+The main goal is to probe node capabilities to verify execution client implementation authenticity.
 
-Refs:
+### Challenges Implemented
+
+- [x] **Random block header requests** - Random range and specific block queries
+
+### Other potential challenges
+
+- **Random trie nodes over Snap protocol**
+- **Random block bodies**
+
+## Refs
 
 - https://github.com/ethereum/go-ethereum/
 - https://github.com/ethereum/devp2p

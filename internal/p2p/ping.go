@@ -1,14 +1,19 @@
 package p2p
 
+import (
+	"fmt"
+)
+
 const (
 	pingMsg = 0x02
 	pongMsg = 0x03
 )
 
-func (c *Client) handlePing(payload []byte) error {
-	c.logg.Debug("received ping")
+func (c *Client) handlePing() error {
+	c.logg.Debug("received ping message")
+
 	if err := c.sendPong(); err != nil {
-		return err
+		return fmt.Errorf("failed to send pong: %w", err)
 	}
 
 	return nil

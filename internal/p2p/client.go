@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"log/slog"
 	"net"
 	"time"
@@ -16,18 +17,16 @@ type (
 	ClientOpts struct {
 		EnodeURL      string
 		PrivateKeyHex string
-		UserAgent     string
 		Logg          *slog.Logger
 	}
 
 	Client struct {
-		userAgent  string
 		conn       net.Conn
-		stopCh     chan struct{}
 		privateKey *ecdsa.PrivateKey
 		rlpxConn   *rlpx.Conn
 		logg       *slog.Logger
 		enode      *enode.Node
+		ready      bool
 	}
 )
 
@@ -40,7 +39,6 @@ func NewClient(o ClientOpts) (*Client, error) {
 	}
 
 	return &Client{
-		userAgent:  o.UserAgent,
 		logg:       o.Logg,
 		privateKey: privateKey,
 		enode:      enode.MustParseV4(o.EnodeURL),
@@ -58,6 +56,11 @@ func (c *Client) Connect(ctx context.Context) error {
 		c.logg.Error("failed to connect to node tcp endpoint", "tcpEndpoint", tcpEndpoint.String(), "err", err)
 		return err
 	}
+	defer func() {
+		if err != nil {
+			conn.Close()
+		}
+	}()
 	c.logg.Debug("successfully established connection with node tcp endpoint", "tcpEndpoint", tcpEndpoint.String())
 	c.conn = conn
 
@@ -73,15 +76,6 @@ func (c *Client) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Close() error {
-	c.logg.Debug("closing connection")
-	if c.conn != nil {
-		c.conn.Close()
-	}
-	return nil
-}
-
-// TODO: Refactor to break out of loop and support individual connections held in a pool
 func (c *Client) ReadProcess() {
 	if err := c.sendHello(); err != nil {
 		c.logg.Error("failed to send hello message", "err", err)
@@ -91,6 +85,10 @@ func (c *Client) ReadProcess() {
 	for {
 		code, payload, _, err := c.rlpxConn.Read()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				c.logg.Debug("connection closed")
+				return
+			}
 			c.logg.Error("failed to read message", "err", err)
 			return
 		}
@@ -106,14 +104,27 @@ func (c *Client) ReadProcess() {
 				c.logg.Error("failed to handle status message", "err", err)
 				return
 			}
+		case disconnectMsg:
+			if err := c.handleDisconnect(payload); err != nil {
+				c.logg.Error("received disconnect", "err", err)
+				return
+			}
 		case pingMsg:
-			if err := c.handlePing(payload); err != nil {
+			if err := c.handlePing(); err != nil {
 				c.logg.Error("failed to handle ping message", "err", err)
 				return
 			}
+		case blockHeadersMsg:
+			if err := c.handleBlockHeaders(payload); err != nil {
+				c.logg.Error("failed to handle block headers message", "err", err)
+				return
+			}
 		default:
-			c.logg.Debug("received message", "code", code, "payload", payload)
+			c.logg.Warn("received unknown message", "code", code, "payload", payload)
 		}
 	}
+}
 
+func (c *Client) Close() {
+	c.conn.Close()
 }
